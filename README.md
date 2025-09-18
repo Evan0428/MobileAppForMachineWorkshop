@@ -23,6 +23,9 @@ assets/images/login_logo.png  (暂时放之前的logo)<br>
 =========================================================================================== <br><br>
 ！！！！！！！！！！！！！！！！！！！！！！！！！！<br>
 只需要copy & paste 必要的code 然后加新的在lib 其他尽量不要改<br>
+copy 进去后记得terminal   
+flutter pub get  
+flutter run  
 
 
 
