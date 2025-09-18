@@ -1,36 +1,26 @@
 <<<<<<< HEAD
-# tester
-
-tester
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+这个是整个用到的code
+assets/
+  images/
+    login_logo.png
+lib/
+  main.dart
+  auth.dart
+  models.dart
+  repository.dart
+  state.dart
+  widgets/status_chip.dart
+  screens/login_screen.dart
+  screens/dashboard_screen.dart
+  screens/job_detail_screen.dart
+  screens/sign_off_screen.dart
+test/  
+  widget_test.dart
+pubspec.yaml
+analysis_options.yaml
+assets/images/login_logo.png  (暂时放之前的logo)
 
 =======
-# tester
+！！！！！！！！！！！！！！！！！！！！！！！！！！
+只需要copy & paste 必要的code 然后加新的在lib 其他尽量不要改
 
-tester
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
->>>>>>> df8ba06 (Initial)
