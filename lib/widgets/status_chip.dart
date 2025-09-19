@@ -13,7 +13,9 @@ class StatusChip extends StatelessWidget {
       JobStatus.inProgress => Colors.blue,
       JobStatus.onHold     => Colors.orange,
       JobStatus.completed  => Colors.green,
+      JobStatus.signedOff  => Colors.teal,
     };
+
 
     return Chip(
       avatar: CircleAvatar(backgroundColor: color, radius: 6),
