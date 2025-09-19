@@ -36,7 +36,7 @@ class _SignOffScreenState extends State<SignOffScreen> {
     final c = JobDetailController();
     await c.init(jobId);
     await c.addPhotoNote(file.path);
-    await c.setStatus(JobStatus.completed);
+    await c.setStatus(JobStatus.signedOff);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Signature saved, job completed.')));
