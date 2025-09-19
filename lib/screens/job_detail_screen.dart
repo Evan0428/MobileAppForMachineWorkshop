@@ -106,20 +106,21 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Widget _statusStepper(JobStatus status) {
-
     final steps = [
       JobStatus.assigned,
       JobStatus.accepted,
       JobStatus.inProgress,
       JobStatus.onHold,
       JobStatus.completed,
+      JobStatus.signedOff,
     ];
     Color colorOf(JobStatus s) => switch (s) {
-      JobStatus.assigned => Colors.grey,
-      JobStatus.accepted => Colors.blueGrey,
+      JobStatus.assigned   => Colors.grey,
+      JobStatus.accepted   => Colors.blueGrey,
       JobStatus.inProgress => Colors.blue,
-      JobStatus.onHold => Colors.orange,
-      JobStatus.completed => Colors.green,
+      JobStatus.onHold     => Colors.orange,
+      JobStatus.completed  => Colors.green,
+      JobStatus.signedOff  => Colors.teal,   
     };
     final currentIndex = steps.indexOf(status);
     return Row(
