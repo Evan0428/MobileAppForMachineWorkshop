@@ -17,6 +17,16 @@ class JobDetailScreen extends StatefulWidget {
 }
 
 class _JobDetailScreenState extends State<JobDetailScreen> {
+  void _needCompleteFirst() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please mark the job as Completed before signing off.')),
+    );
+  }
+
+  void _goSignOff(String jobId) {
+    Navigator.pushNamed(context, SignOffScreen.routeName, arguments: jobId);
+  }
+
   late final JobDetailController c;
   final noteCtrl = TextEditingController();
 
@@ -120,7 +130,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       JobStatus.inProgress => Colors.blue,
       JobStatus.onHold     => Colors.orange,
       JobStatus.completed  => Colors.green,
-      JobStatus.signedOff  => Colors.teal,   
+      JobStatus.signedOff  => Colors.teal,
     };
     final currentIndex = steps.indexOf(status);
     return Row(
@@ -155,7 +165,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     if (job == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
+    final canSignOff = job.status == JobStatus.completed;
     final sched = TimeOfDay.fromDateTime(job.scheduledFor);
     final schedStr = '${sched.hour.toString().padLeft(2, '0')}:${sched.minute.toString().padLeft(2, '0')}';
 
@@ -166,7 +176,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           IconButton(
             icon: const Icon(Icons.assignment_turned_in),
             tooltip: 'Digital Sign-off',
-            onPressed: () => Navigator.pushNamed(context, SignOffScreen.routeName, arguments: job.id),
+            onPressed: () {
+              if (job.status == JobStatus.completed) {
+                _goSignOff(job.id);
+              } else {
+                _needCompleteFirst();
+              }
+            },
+
           ),
           const SizedBox(width: 6),
         ],
@@ -414,9 +431,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 ),
               ),
               const SizedBox(width: 10),
+
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, SignOffScreen.routeName, arguments: job.id),
+                  onPressed: canSignOff ? () => _goSignOff(job.id) : null, // 未完成禁用
                   icon: const Icon(Icons.assignment_turned_in),
                   label: const Text('Sign-off'),
                 ),
