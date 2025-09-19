@@ -1,16 +1,19 @@
 import 'package:intl/intl.dart';
 
-enum JobStatus { assigned, accepted, inProgress, onHold, completed }
+
+enum JobStatus { assigned, accepted, inProgress, onHold, completed, signedOff }
 
 extension JobStatusX on JobStatus {
   String get label => switch (this) {
-    JobStatus.assigned => 'Assigned',
-    JobStatus.accepted => 'Accepted',
+    JobStatus.assigned   => 'Assigned',
+    JobStatus.accepted   => 'Accepted',
     JobStatus.inProgress => 'In Progress',
-    JobStatus.onHold => 'On Hold',
-    JobStatus.completed => 'Completed',
+    JobStatus.onHold     => 'On Hold',
+    JobStatus.completed  => 'Completed',
+    JobStatus.signedOff  => 'Signed-off',
   };
 }
+
 
 class Customer {
   final String id;
