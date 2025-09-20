@@ -4,65 +4,33 @@ import 'models.dart';
 import 'repository.dart';
 
 class JobListController extends ChangeNotifier {
-  final repo = JobRepository();
-  List<MechanicJob> all = [];
-  List<MechanicJob> filtered = [];
-  bool showWeek = false;
-  String search = '';
-  JobStatus? statusFilter; // null = 不过滤
+  bool showWeek = false;          // 是否查看一周任务
+  String search = '';             // 搜索关键字
+  JobStatus? statusFilter;        // 状态过滤，null = 不过滤
 
   // ✅ 设置状态过滤
   void setStatusFilter(JobStatus? status) {
     statusFilter = status;
-    apply();
-  }
-
-  // ✅ 新增：jobs getter，保持兼容 DashboardScreen
-  List<MechanicJob> get jobs => filtered;
-
-  Future<void> load() async {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(Duration(days: showWeek ? 7 : 1));
-    all = await repo.listJobs(start: start, end: end);
-    apply();
-  }
-
-  void toggleRange(bool week) {
-    showWeek = week;
-    load();
-  }
-
-  void setSearch(String q) {
-    search = q;
-    apply();
-  }
-
-  void apply() {
-    final q = search.toLowerCase();
-    filtered = all.where((j) {
-      final hay = [
-        j.title,
-        j.description,
-        j.customer.name,
-        j.vehicle.plate,
-        j.vehicle.model,
-        j.vehicle.make,
-      ].join(' ').toLowerCase();
-
-      final matchesText = hay.contains(q);
-      final matchesStatus = statusFilter == null || j.status == statusFilter;
-
-      return matchesText && matchesStatus;
-    }).toList();
     notifyListeners();
   }
-} // 👈 修正：这里要结束 JobListController
+
+  // ✅ 设置时间范围 Today / This Week
+  void toggleRange(bool week) {
+    showWeek = week;
+    notifyListeners();
+  }
+
+  // ✅ 设置搜索
+  void setSearch(String q) {
+    search = q;
+    notifyListeners();
+  }
+}
 
 // ===============================
 
 class JobDetailController extends ChangeNotifier {
-  final repo = JobRepository();
+  final repo = JobRepository(); // ⚠️ 记得 import 你的 JobRepository
   MechanicJob? job;
   Timer? _timer;
   bool running = false;
@@ -103,12 +71,15 @@ class JobDetailController extends ChangeNotifier {
   Future<void> addTextNote(String text) async {
     if (job == null) return;
     await repo.addTextNote(job!.id, text);
+    // 重新拉取 job，确保最新 notes
+    job = await repo.getJob(job!.id);
     notifyListeners();
   }
 
   Future<void> addPhotoNote(String path) async {
     if (job == null) return;
     await repo.addPhotoNote(job!.id, path);
+    job = await repo.getJob(job!.id);
     notifyListeners();
   }
 
