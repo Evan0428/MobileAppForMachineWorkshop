@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../auth.dart';
+import 'register_screen.dart'; // 👈 引入注册页
 
 class LoginScreen extends StatefulWidget {
   static const routeName = '/login';
@@ -12,13 +13,13 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _userCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _busy = false;
 
   @override
   void dispose() {
-    _userCtrl.dispose();
+    _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
   }
@@ -28,11 +29,21 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _busy = true);
     try {
       await context.read<AuthController>().login(
-        username: _userCtrl.text.trim(),
-        password: _passCtrl.text,
+        _emailCtrl.text.trim(),
+        _passCtrl.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Welcome to GearUp!')));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Welcome back!')),
+      );
+
+      // ✅ 登录成功后强制回到 RootGate (会根据登录状态跳 Dashboard)
+      Navigator.pushReplacementNamed(context, '/');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: $e')),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -40,7 +51,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final media = MediaQuery.of(context);
     final teal = const Color(0xFF45C2C7);
 
@@ -48,6 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // 顶部 Logo
             Container(
               width: double.infinity,
               height: media.size.height * 0.35,
@@ -60,20 +71,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('GearUp WorkShop', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
-                  Text('Friend of every employee', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text('Help you focus', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black54)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+
+            // 表单
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Form(
@@ -81,9 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   children: [
                     TextFormField(
-                      controller: _userCtrl,
-                      decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person)),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter username' : null,
+                      controller: _emailCtrl,
+                      decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.person)),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter email' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -93,6 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
                     ),
                     const SizedBox(height: 24),
+
+                    // 登录按钮
                     SizedBox(
                       width: double.infinity,
                       height: 48,
@@ -101,11 +102,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _busy ? const CircularProgressIndicator() : const Text('Log In'),
                       ),
                     ),
+                    const SizedBox(height: 12),
+
+                    // 注册跳转按钮
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                        );
+                      },
+                      child: const Text("Don't have an account? Register"),
+                    ),
                   ],
                 ),
               ),
             ),
-            const Spacer(),
           ],
         ),
       ),
