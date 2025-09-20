@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state.dart';
-import '../models.dart';
-import '../auth.dart';
 import 'job_detail_screen.dart';
-import '../widgets/status_chip.dart';
+import 'profile_screen.dart'; // ✅ 新增 Profile 页面
+import '../models.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -14,102 +13,58 @@ class DashboardScreen extends StatelessWidget {
     final c = context.watch<JobListController>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Jobs — GearUp'),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'logout') context.read<AuthController>().logout();
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'logout', child: Text('Logout')),
-            ],
-          ),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('Today')),
-                ButtonSegment(value: true, label: Text('Week')),
-              ],
-              selected: <bool>{c.showWeek},
-              onSelectionChanged: (s) => context.read<JobListController>().toggleRange(s.first),
+      appBar: AppBar(title: const Text('My Jobs — GearUp')),
+
+      // ✅ Drawer 菜单
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.blue),
+              child: Text(
+                "Menu",
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
             ),
-          ),
-        ],
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text("Profile"),
+              onTap: () {
+                Navigator.pop(context); // 先关掉 Drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text("Logout"),
+              onTap: () {
+                // ✅ 这里以后可以调用 AuthController.logout()
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              onChanged: context.read<JobListController>().setSearch,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search jobs, plate, customer...',
-              ),
+
+      // ✅ Job 列表
+      body: ListView.builder(
+        itemCount: c.jobs.length,
+        itemBuilder: (context, index) {
+          final job = c.jobs[index]; // 👈 这里是 MechanicJob
+          return ListTile(
+            title: Text(job.title),
+            subtitle: Text("Status: ${job.status.label}"), // 👈 用 JobStatusX.label
+            onTap: () => Navigator.pushNamed(
+              context,
+              JobDetailScreen.routeName,
+              arguments: job.id, // 👈 保持你原始逻辑，传 job.id
             ),
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => context.read<JobListController>().load(),
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: c.filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  final j = c.filtered[i];
-                  return Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => Navigator.pushNamed(context, JobDetailScreen.routeName, arguments: j.id),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.build, size: 28),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(j.title, style: Theme.of(context).textTheme.titleMedium),
-                                  const SizedBox(height: 4),
-                                  Text(j.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      StatusChip(status: j.status),
-                                      Chip(label: Text(j.vehicle.plate)),
-                                      Chip(label: Text('${j.vehicle.make} ${j.vehicle.model} ${j.vehicle.year}')),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(j.customer.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 4),
-                                Text('${j.scheduledFor.hour.toString().padLeft(2, '0')}:${j.scheduledFor.minute.toString().padLeft(2, '0')}'),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
