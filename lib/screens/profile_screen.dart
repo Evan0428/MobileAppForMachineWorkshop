@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileScreen extends StatefulWidget {
   static const routeName = '/profile';
@@ -9,22 +11,63 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _auth = FirebaseAuth.instance;
+  final _db = FirebaseFirestore.instance;
+
   bool _editing = false;
+  bool _loading = true;
 
-  // ✅ 假数据（以后可以从 Firebase 替换）
-  String _name = "John Doe";
-  String _phone = "+60 123456789";
-  String _email = "johndoe@example.com";
+  String _name = "";
+  String _phone = "";
+  String _email = "";
 
-  // 控制器（编辑模式用）
   late TextEditingController _nameCtrl;
   late TextEditingController _phoneCtrl;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: _name);
-    _phoneCtrl = TextEditingController(text: _phone);
+    _nameCtrl = TextEditingController();
+    _phoneCtrl = TextEditingController();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final doc = await _db.collection("users").doc(user.uid).get();
+    final data = doc.data();
+    if (data != null) {
+      setState(() {
+        _name = data["name"] ?? "";
+        _phone = data["phone"] ?? "";
+        _email = data["email"] ?? user.email ?? "";
+        _nameCtrl.text = _name;
+        _phoneCtrl.text = _phone;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _db.collection("users").doc(user.uid).update({
+      "name": _nameCtrl.text.trim(),
+      "phone": _phoneCtrl.text.trim(),
+    });
+
+    setState(() {
+      _name = _nameCtrl.text.trim();
+      _phone = _phoneCtrl.text.trim();
+      _editing = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Profile updated successfully")),
+    );
   }
 
   @override
@@ -36,40 +79,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _toggleEdit() {
     if (_editing) {
-      // 保存数据
-      setState(() {
-        _name = _nameCtrl.text;
-        _phone = _phoneCtrl.text;
-        _editing = false;
-      });
-
-      // ✅ 显示提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile updated")),
-      );
+      _saveProfile();
     } else {
-      // 进入编辑模式
       setState(() => _editing = true);
     }
   }
 
-  Widget _buildInfoTile({
-    required IconData icon,
-    required String label,
-    required Widget child,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.blue),
-        title: child,
-        subtitle: Text(label),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Profile"),
@@ -77,53 +100,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: Icon(_editing ? Icons.save : Icons.edit),
             onPressed: _toggleEdit,
-          )
+          ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // ✅ 用户头像
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: Colors.blue.shade200,
-              child: Text(
-                _name.isNotEmpty ? _name[0] : "?",
-                style: const TextStyle(fontSize: 32, color: Colors.white),
+            _editing
+                ? TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                labelText: "Name",
+                prefixIcon: Icon(Icons.person),
               ),
+            )
+                : ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(_name),
             ),
-            const SizedBox(height: 20),
-
-            // ✅ 名字
-            _buildInfoTile(
-              icon: Icons.person,
-              label: "Name",
-              child: _editing
-                  ? TextField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(border: InputBorder.none),
-              )
-                  : Text(_name, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 12),
+            _editing
+                ? TextField(
+              controller: _phoneCtrl,
+              decoration: const InputDecoration(
+                labelText: "Phone",
+                prefixIcon: Icon(Icons.phone),
+              ),
+            )
+                : ListTile(
+              leading: const Icon(Icons.phone),
+              title: Text(_phone),
             ),
-
-            // ✅ 电话
-            _buildInfoTile(
-              icon: Icons.phone,
-              label: "Phone",
-              child: _editing
-                  ? TextField(
-                controller: _phoneCtrl,
-                decoration: const InputDecoration(border: InputBorder.none),
-              )
-                  : Text(_phone, style: const TextStyle(fontSize: 16)),
-            ),
-
-            // ✅ 邮箱（只读）
-            _buildInfoTile(
-              icon: Icons.email,
-              label: "Email",
-              child: Text(_email, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.email),
+              title: Text(_email),
             ),
           ],
         ),
