@@ -16,15 +16,37 @@ class HistoryScreen extends StatelessWidget {
           (j) => j.status == JobStatus.completed || j.status == JobStatus.signedOff,
     ).toList();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("Job History")),
-      body: historyJobs.isEmpty
-          ? const Center(child: Text("No completed jobs yet"))
-          : ListView.builder(
-        itemCount: historyJobs.length,
-        itemBuilder: (context, index) {
-          final job = historyJobs[index];
-          return ListTile(
+    if (historyJobs.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Job History")),
+        body: const Center(child: Text("No completed jobs yet")),
+      );
+    }
+
+    // ✅ 分组：今天 / 本周 / 更早
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final startOfWeek = startOfToday.subtract(Duration(days: now.weekday - 1));
+
+    final todayJobs = historyJobs.where((j) => j.scheduledFor.isAfter(startOfToday)).toList();
+    final weekJobs = historyJobs
+        .where((j) => j.scheduledFor.isAfter(startOfWeek) && j.scheduledFor.isBefore(startOfToday))
+        .toList();
+    final earlierJobs = historyJobs.where((j) => j.scheduledFor.isBefore(startOfWeek)).toList();
+
+    Widget buildSection(String title, List<MechanicJob> jobs) {
+      if (jobs.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ...jobs.map((job) => ListTile(
             leading: const Icon(Icons.history, color: Colors.green),
             title: Text(job.title),
             subtitle: Text("Status: ${job.status.label}"),
@@ -33,8 +55,20 @@ class HistoryScreen extends StatelessWidget {
               JobDetailScreen.routeName,
               arguments: job.id,
             ),
-          );
-        },
+          )),
+          const Divider(),
+        ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Job History")),
+      body: ListView(
+        children: [
+          buildSection("Today", todayJobs),
+          buildSection("This Week", weekJobs),
+          buildSection("Earlier", earlierJobs),
+        ],
       ),
     );
   }
