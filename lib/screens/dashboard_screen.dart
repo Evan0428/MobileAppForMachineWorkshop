@@ -67,9 +67,34 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
 
-          // ✅ Today / This Week 切换按钮
+          // ✅ 状态过滤下拉菜单
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: DropdownButton<JobStatus?>(
+              value: c.statusFilter,
+              hint: const Text("Filter by Status"),
+              isExpanded: true,
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text("All Jobs"),
+                ),
+                ...JobStatus.values.map(
+                      (s) => DropdownMenuItem(
+                    value: s,
+                    child: Text(s.label),
+                  ),
+                ),
+              ],
+              onChanged: (s) {
+                context.read<JobListController>().setStatusFilter(s);
+              },
+            ),
+          ),
+
+          // ✅ Today / This Week 切换按钮
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
