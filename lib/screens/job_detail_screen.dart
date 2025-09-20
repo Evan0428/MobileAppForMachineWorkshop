@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +18,7 @@ class JobDetailScreen extends StatefulWidget {
 }
 
 class _JobDetailScreenState extends State<JobDetailScreen> {
+
   void _needCompleteFirst() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Please mark the job as Completed before signing off.')),
@@ -29,6 +31,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   late final JobDetailController c;
   final noteCtrl = TextEditingController();
+  Timer? _ticker; // ✅ 新增：UI 定时刷新
+
 
   @override
   void initState() {
@@ -45,6 +49,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   void dispose() {
     noteCtrl.dispose();
     c.dispose();
+    _ticker?.cancel(); // ✅ 清理ticker
     super.dispose();
   }
 
@@ -409,7 +414,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: c.startTimer,
+                  onPressed: () {
+                    c.startTimer();
+                    _ticker?.cancel();
+                    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+                      setState(() {}); // ✅ 每秒刷新 UI
+                    });
+                  },
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Start'),
                 ),
@@ -417,7 +428,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: c.pauseTimer,
+                  onPressed: () {
+                    c.pauseTimer();
+                    _ticker?.cancel(); // ✅ 停止刷新
+                  },
                   icon: const Icon(Icons.pause),
                   label: const Text('Pause'),
                 ),
@@ -425,16 +439,18 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: c.stopTimer,
+                  onPressed: () {
+                    c.stopTimer();
+                    _ticker?.cancel(); // ✅ 停止刷新
+                  },
                   icon: const Icon(Icons.stop),
                   label: const Text('Stop'),
                 ),
               ),
               const SizedBox(width: 10),
-
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: canSignOff ? () => _goSignOff(job.id) : null, // 未完成禁用
+                  onPressed: canSignOff ? () => _goSignOff(job.id) : null,
                   icon: const Icon(Icons.assignment_turned_in),
                   label: const Text('Sign-off'),
                 ),
