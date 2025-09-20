@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gearup_workshop_mechanics/screens/add_job_screen.dart';
 import 'package:gearup_workshop_mechanics/screens/profile_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -29,7 +30,7 @@ class GearUpApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthController()..load()),
-        ChangeNotifierProvider(create: (_) => JobListController()..load()),
+        ChangeNotifierProvider(create: (_) => JobListController()), // ❌ 去掉 load()
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false, // ✅ 关闭右上角 DEBUG 横幅
@@ -48,6 +49,7 @@ class GearUpApp extends StatelessWidget {
           SignOffScreen.routeName: (_) => const SignOffScreen(),
           HistoryScreen.routeName: (_) => const HistoryScreen(),
           ProfileScreen.routeName: (_) => const ProfileScreen(),
+          AddJobScreen.routeName: (_) => const AddJobScreen(),
         },
       ),
     );
