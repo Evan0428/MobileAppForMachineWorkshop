@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state.dart';
+import 'history_screen.dart';
 import 'job_detail_screen.dart';
 import 'profile_screen.dart';
 import '../models.dart';
@@ -39,6 +40,17 @@ class DashboardScreen extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text("Job History"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.logout),
               title: const Text("Logout"),
               onTap: () {
@@ -46,6 +58,8 @@ class DashboardScreen extends StatelessWidget {
                 Navigator.pop(context);
               },
             ),
+
+
           ],
         ),
       ),
