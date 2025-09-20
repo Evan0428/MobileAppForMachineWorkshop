@@ -1,26 +1,99 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models.dart';
+import 'models.dart';
+import 'repository.dart';
 
-class StatusChip extends StatelessWidget {
-  final JobStatus status;
-  const StatusChip({super.key, required this.status});
+class JobListController extends ChangeNotifier {
+  bool showWeek = false;          // 是否查看一周任务
+  String search = '';             // 搜索关键字
+  JobStatus? statusFilter;        // 状态过滤，null = 不过滤
+
+  // ✅ 设置状态过滤
+  void setStatusFilter(JobStatus? status) {
+    statusFilter = status;
+    notifyListeners();
+  }
+
+  // ✅ 设置时间范围 Today / This Week
+  void toggleRange(bool week) {
+    showWeek = week;
+    notifyListeners();
+  }
+
+  // ✅ 设置搜索
+  void setSearch(String q) {
+    search = q;
+    notifyListeners();
+  }
+}
+
+// ===============================
+
+class JobDetailController extends ChangeNotifier {
+  final repo = JobRepository(); // ⚠️ 记得 import 你的 JobRepository
+  MechanicJob? job;
+  Timer? _timer;
+  bool running = false;
+
+  Future<void> init(String id) async {
+    job = await repo.getJob(id);
+    notifyListeners();
+  }
+
+  Future<void> setStatus(JobStatus s) async {
+    if (job == null) return;
+    await repo.updateStatus(job!.id, s);
+    job!.status = s;
+    notifyListeners();
+  }
+
+  void startTimer() {
+    if (job == null || running) return;
+    running = true;
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) async {
+      job!.elapsedSeconds += 1;
+      await repo.saveElapsed(job!.id, job!.elapsedSeconds);
+      notifyListeners();
+    });
+  }
+
+  void pauseTimer() {
+    running = false;
+    _timer?.cancel();
+    _timer = null;
+    notifyListeners();
+  }
+
+  void stopTimer() {
+    pauseTimer();
+  }
+
+  Future<void> addTextNote(String text) async {
+    if (job == null) return;
+    await repo.addTextNote(job!.id, text);
+    // 重新拉取 job，确保最新 notes
+    job = await repo.getJob(job!.id);
+    notifyListeners();
+  }
+
+  Future<void> addPhotoNote(String path) async {
+    if (job == null) return;
+    await repo.addPhotoNote(job!.id, path);
+    job = await repo.getJob(job!.id);
+    notifyListeners();
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final color = switch (status) {
-      JobStatus.assigned   => Colors.grey,
-      JobStatus.accepted   => Colors.blueGrey,
-      JobStatus.inProgress => Colors.blue,
-      JobStatus.onHold     => Colors.orange,
-      JobStatus.completed  => Colors.green,
-      JobStatus.signedOff  => Colors.teal,
-    };
-
-
-    return Chip(
-      avatar: CircleAvatar(backgroundColor: color, radius: 6),
-      label: Text(status.label),
-      side: BorderSide(color: color.withOpacity(0.5)),
-    );
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
+}
+
+// ===============================
+
+String formatDuration(int seconds) {
+  final d = Duration(seconds: seconds);
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(d.inHours)}:${two(d.inMinutes.remainder(60))}:${two(d.inSeconds.remainder(60))}';
 }
