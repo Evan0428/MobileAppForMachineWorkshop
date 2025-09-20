@@ -7,9 +7,14 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/job_detail_screen.dart';
 import 'screens/sign_off_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const GearUpApp());
 }
 
@@ -24,6 +29,7 @@ class GearUpApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => JobListController()..load()),
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false, // ✅ 关闭右上角 DEBUG 横幅
         title: 'GearUp Workshop',
         theme: ThemeData(
           useMaterial3: true,
