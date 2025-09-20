@@ -9,6 +9,13 @@ class JobListController extends ChangeNotifier {
   List<MechanicJob> filtered = [];
   bool showWeek = false;
   String search = '';
+  JobStatus? statusFilter; // null = 不过滤
+
+  // ✅ 设置状态过滤
+  void setStatusFilter(JobStatus? status) {
+    statusFilter = status;
+    apply();
+  }
 
   // ✅ 新增：jobs getter，保持兼容 DashboardScreen
   List<MechanicJob> get jobs => filtered;
@@ -42,11 +49,17 @@ class JobListController extends ChangeNotifier {
         j.vehicle.model,
         j.vehicle.make,
       ].join(' ').toLowerCase();
-      return hay.contains(q);
+
+      final matchesText = hay.contains(q);
+      final matchesStatus = statusFilter == null || j.status == statusFilter;
+
+      return matchesText && matchesStatus;
     }).toList();
     notifyListeners();
   }
-}
+} // 👈 修正：这里要结束 JobListController
+
+// ===============================
 
 class JobDetailController extends ChangeNotifier {
   final repo = JobRepository();
@@ -106,10 +119,10 @@ class JobDetailController extends ChangeNotifier {
   }
 }
 
+// ===============================
+
 String formatDuration(int seconds) {
   final d = Duration(seconds: seconds);
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(d.inHours)}:${two(d.inMinutes.remainder(60))}:${two(d.inSeconds.remainder(60))}';
 }
-
-
