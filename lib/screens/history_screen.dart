@@ -5,6 +5,7 @@ import '../models.dart';
 import 'job_detail_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
+  static const routeName = '/history';
   const HistoryScreen({super.key});
 
   @override
