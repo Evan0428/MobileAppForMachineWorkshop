@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gearup_workshop_mechanics/screens/profile_screen.dart';
 import 'package:provider/provider.dart';
 
 import 'auth.dart';
@@ -9,6 +10,7 @@ import 'screens/job_detail_screen.dart';
 import 'screens/sign_off_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'screens/history_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +44,8 @@ class GearUpApp extends StatelessWidget {
           LoginScreen.routeName: (_) => const LoginScreen(),
           JobDetailScreen.routeName: (_) => const JobDetailScreen(),
           SignOffScreen.routeName: (_) => const SignOffScreen(),
+          HistoryScreen.routeName: (_) => const HistoryScreen(),
+          ProfileScreen.routeName: (_) => const ProfileScreen(),
         },
       ),
     );
