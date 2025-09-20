@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state.dart';
+import '../auth.dart'; // ✅ 引入 AuthController
 import 'history_screen.dart';
 import 'job_detail_screen.dart';
 import 'profile_screen.dart';
 import '../models.dart';
+import 'login_screen.dart'; // ✅ 确保可以导航回登录界面
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -53,13 +55,18 @@ class DashboardScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text("Logout"),
-              onTap: () {
-                // ✅ 以后可调用 AuthController.logout()
-                Navigator.pop(context);
+              onTap: () async {
+                Navigator.pop(context); // 先关 Drawer
+                await context.read<AuthController>().logout(); // ✅ 调用 Firebase 登出
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false, // 清空栈，防止返回已登录页面
+                  );
+                }
               },
             ),
-
-
           ],
         ),
       ),
