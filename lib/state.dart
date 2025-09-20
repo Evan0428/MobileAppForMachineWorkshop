@@ -10,6 +10,9 @@ class JobListController extends ChangeNotifier {
   bool showWeek = false;
   String search = '';
 
+  // ✅ 新增：jobs getter，保持兼容 DashboardScreen
+  List<MechanicJob> get jobs => filtered;
+
   Future<void> load() async {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day);
@@ -108,3 +111,5 @@ String formatDuration(int seconds) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${two(d.inHours)}:${two(d.inMinutes.remainder(60))}:${two(d.inSeconds.remainder(60))}';
 }
+
+
