@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+
 import '../models.dart';
-import '../state.dart';
+import '../repository.dart';
 import '../widgets/status_chip.dart';
 import 'sign_off_screen.dart';
 
@@ -18,6 +19,10 @@ class JobDetailScreen extends StatefulWidget {
 }
 
 class _JobDetailScreenState extends State<JobDetailScreen> {
+  final repo = JobRepository();
+  MechanicJob? job;
+  Timer? _ticker;
+  final noteCtrl = TextEditingController();
 
   void _needCompleteFirst() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -29,40 +34,35 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     Navigator.pushNamed(context, SignOffScreen.routeName, arguments: jobId);
   }
 
-  late final JobDetailController c;
-  final noteCtrl = TextEditingController();
-  Timer? _ticker; // ✅ 新增：UI 定时刷新
-
-
   @override
   void initState() {
     super.initState();
-    c = JobDetailController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final id = ModalRoute.of(context)!.settings.arguments as String;
-      c.init(id);
-      setState(() {});
+      final j = await repo.getJob(id);
+      setState(() => job = j);
     });
   }
 
   @override
   void dispose() {
     noteCtrl.dispose();
-    c.dispose();
-    _ticker?.cancel(); // ✅ 清理ticker
+    _ticker?.cancel();
     super.dispose();
   }
 
-
   Future<void> _pickAndSavePhoto() async {
+    if (job == null) return;
     final picker = ImagePicker();
     final x = await picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.rear);
     if (x == null) return;
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/${DateTime.now().millisecondsSinceEpoch}_${x.name}');
     await file.writeAsBytes(await x.readAsBytes());
-    await c.addPhotoNote(file.path);
-    setState(() {});
+    await repo.addPhotoNote(job!.id, file.path);
+
+    final j = await repo.getJob(job!.id);
+    setState(() => job = j);
   }
 
   Widget _kpiChip(IconData icon, String label, String value) {
@@ -130,12 +130,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       JobStatus.signedOff,
     ];
     Color colorOf(JobStatus s) => switch (s) {
-      JobStatus.assigned   => Colors.grey,
-      JobStatus.accepted   => Colors.blueGrey,
+      JobStatus.assigned => Colors.grey,
+      JobStatus.accepted => Colors.blueGrey,
       JobStatus.inProgress => Colors.blue,
-      JobStatus.onHold     => Colors.orange,
-      JobStatus.completed  => Colors.green,
-      JobStatus.signedOff  => Colors.teal,
+      JobStatus.onHold => Colors.orange,
+      JobStatus.completed => Colors.green,
+      JobStatus.signedOff => Colors.teal,
     };
     final currentIndex = steps.indexOf(status);
     return Row(
@@ -166,36 +166,33 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final job = c.job;
     if (job == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final canSignOff = job.status == JobStatus.completed;
-    final sched = TimeOfDay.fromDateTime(job.scheduledFor);
+    final canSignOff = job!.status == JobStatus.completed;
+    final sched = TimeOfDay.fromDateTime(job!.scheduledFor);
     final schedStr = '${sched.hour.toString().padLeft(2, '0')}:${sched.minute.toString().padLeft(2, '0')}';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(job.title),
+        title: Text(job!.title),
         actions: [
           IconButton(
             icon: const Icon(Icons.assignment_turned_in),
             tooltip: 'Digital Sign-off',
             onPressed: () {
-              if (job.status == JobStatus.completed) {
-                _goSignOff(job.id);
+              if (job!.status == JobStatus.completed) {
+                _goSignOff(job!.id);
               } else {
                 _needCompleteFirst();
               }
             },
-
           ),
           const SizedBox(width: 6),
         ],
       ),
       body: CustomScrollView(
         slivers: [
-
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -211,21 +208,27 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          StatusChip(status: job.status),
+                          StatusChip(status: job!.status),
                           DropdownButton<JobStatus>(
-                            value: job.status,
+                            value: job!.status,
                             items: JobStatus.values
                                 .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
                                 .toList(),
-                            onChanged: (s) => c.setStatus(s!),
+                            onChanged: (s) async {
+                              if (s != null) {
+                                await repo.updateStatus(job!.id, s);
+                                final j = await repo.getJob(job!.id);
+                                setState(() => job = j);
+                              }
+                            },
                           ),
                           const SizedBox(width: 8),
                           _kpiChip(Icons.schedule, 'Scheduled', schedStr),
-                          _kpiChip(Icons.timer, 'Elapsed', formatDuration(job.elapsedSeconds)),
+                          _kpiChip(Icons.timer, 'Elapsed', formatDuration(job!.elapsedSeconds)),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _statusStepper(job.status),
+                      _statusStepper(job!.status),
                     ],
                   ),
                 ),
@@ -233,6 +236,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ),
           ),
 
+          // Customer & Vehicle
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -242,7 +246,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   IconButton(
                     tooltip: 'Copy phone',
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: job.customer.phone));
+                      Clipboard.setData(ClipboardData(text: job!.customer.phone));
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone copied')));
                     },
                     icon: const Icon(Icons.copy),
@@ -251,42 +255,44 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _infoRow('Customer', job.customer.name, icon: Icons.person),
-                    _infoRow('Phone', job.customer.phone, icon: Icons.phone, onTap: () {
-                      Clipboard.setData(ClipboardData(text: job.customer.phone));
+                    _infoRow('Customer', job!.customer.name, icon: Icons.person),
+                    _infoRow('Phone', job!.customer.phone, icon: Icons.phone, onTap: () {
+                      Clipboard.setData(ClipboardData(text: job!.customer.phone));
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone copied')));
                     }),
-                    _infoRow('Email', job.customer.email, icon: Icons.email),
+                    _infoRow('Email', job!.customer.email, icon: Icons.email),
                     const Divider(height: 24),
-                    _infoRow('Plate', job.vehicle.plate, icon: Icons.directions_car),
-                    _infoRow('VIN', job.vehicle.vin, icon: Icons.confirmation_number),
-                    _infoRow('Make/Model', '${job.vehicle.make} ${job.vehicle.model}', icon: Icons.build),
-                    _infoRow('Year', job.vehicle.year.toString(), icon: Icons.calendar_today),
+                    _infoRow('Plate', job!.vehicle.plate, icon: Icons.directions_car),
+                    _infoRow('VIN', job!.vehicle.vin, icon: Icons.confirmation_number),
+                    _infoRow('Make/Model', '${job!.vehicle.make} ${job!.vehicle.model}', icon: Icons.build),
+                    _infoRow('Year', job!.vehicle.year.toString(), icon: Icons.calendar_today),
                   ],
                 ),
               ),
             ),
           ),
 
+          // Job Description
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _sectionCard(
                 title: 'Job Description',
-                child: Text(job.description),
+                child: Text(job!.description),
               ),
             ),
           ),
 
+          // Parts
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _sectionCard(
                 title: 'Assigned Parts',
-                child: job.parts.isEmpty
+                child: job!.parts.isEmpty
                     ? const Text('No parts assigned.')
                     : Column(
-                  children: job.parts
+                  children: job!.parts
                       .map((p) => ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -301,16 +307,16 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ),
           ),
 
-
+          // Service history
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _sectionCard(
                 title: 'Service History',
-                child: job.vehicle.history.isEmpty
+                child: job!.vehicle.history.isEmpty
                     ? const Text('No history.')
                     : Column(
-                  children: job.vehicle.history
+                  children: job!.vehicle.history
                       .map((h) => ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -324,6 +330,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ),
           ),
 
+          // Notes
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -347,12 +354,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                         ),
                         const SizedBox(width: 8),
                         FilledButton(
-                          onPressed: () {
+                          onPressed: () async {
                             final t = noteCtrl.text.trim();
                             if (t.isNotEmpty) {
-                              c.addTextNote(t);
+                              await repo.addTextNote(job!.id, t);
+                              final j = await repo.getJob(job!.id);
+                              setState(() => job = j);
                               noteCtrl.clear();
-                              setState(() {});
                             }
                           },
                           child: const Text('Add'),
@@ -360,14 +368,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (job.notes.isEmpty)
+                    if (job!.notes.isEmpty)
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text('No notes yet.'),
                       )
                     else
                       Column(
-                        children: job.notes.map((n) {
+                        children: job!.notes.map((n) {
                           final isPhoto = n.photoPath != null;
                           return Container(
                             margin: const EdgeInsets.only(bottom: 10),
@@ -399,10 +407,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 88)), // for bottom bar spacing
+          const SliverToBoxAdapter(child: SizedBox(height: 88)),
         ],
       ),
 
+      // Bottom buttons
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -415,10 +424,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: () {
-                    c.startTimer();
                     _ticker?.cancel();
                     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-                      setState(() {}); // ✅ 每秒刷新 UI
+                      setState(() {
+                        job!.elapsedSeconds++;
+                      });
                     });
                   },
                   icon: const Icon(Icons.play_arrow),
@@ -429,8 +439,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    c.pauseTimer();
-                    _ticker?.cancel(); // ✅ 停止刷新
+                    _ticker?.cancel();
+                    repo.saveElapsed(job!.id, job!.elapsedSeconds);
                   },
                   icon: const Icon(Icons.pause),
                   label: const Text('Pause'),
@@ -440,8 +450,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    c.stopTimer();
-                    _ticker?.cancel(); // ✅ 停止刷新
+                    _ticker?.cancel();
+                    repo.saveElapsed(job!.id, job!.elapsedSeconds);
                   },
                   icon: const Icon(Icons.stop),
                   label: const Text('Stop'),
@@ -450,7 +460,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: canSignOff ? () => _goSignOff(job.id) : null,
+                  onPressed: canSignOff ? () => _goSignOff(job!.id) : null,
                   icon: const Icon(Icons.assignment_turned_in),
                   label: const Text('Sign-off'),
                 ),
@@ -461,4 +471,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       ),
     );
   }
+}
+
+String formatDuration(int seconds) {
+  final d = Duration(seconds: seconds);
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60);
+  final s = d.inSeconds.remainder(60);
+  return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 }
