@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'models.dart';
+import '../models.dart';
 
 class JobRepository {
   static final JobRepository _i = JobRepository._internal();
@@ -8,99 +10,119 @@ class JobRepository {
   JobRepository._internal();
 
   final _uuid = const Uuid();
+  final _db = FirebaseFirestore.instance;
 
-  final List<MechanicJob> _jobs = [
-    MechanicJob(
-      id: 'J-001',
-      title: 'Engine Oil & Filter Change',
-      description: 'Replace engine oil, oil filter, inspect belts. Customer notes ticking noise.',
-      customer: Customer(id: 'C-001', name: 'Alex Tan', phone: '012-3456789', email: 'alex.tan@example.com'),
-      vehicle: Vehicle(
-        vin: 'WVWZZZ1JZXW000001',
-        plate: 'VBL 1234',
-        make: 'Proton',
-        model: 'X50',
-        year: 2022,
-        history: [
-          ServiceRecord(date: DateTime.now().subtract(const Duration(days: 120)), description: '15k km service'),
-        ],
-      ),
-      parts: [
-        PartItem(id: 'P-100', name: 'Engine Oil 5W-30', number: 'EO-5W30', qty: 4),
-        PartItem(id: 'P-101', name: 'Oil Filter', number: 'OF-123', qty: 1),
-      ],
-      scheduledFor: DateTime.now().add(const Duration(hours: 1)),
-    ),
-    MechanicJob(
-      id: 'J-002',
-      title: 'Brake Pad Replacement (Front)',
-      description: 'Replace front brake pads and check brake fluid.',
-      customer: Customer(id: 'C-002', name: 'Mei Ling', phone: '013-9988776', email: 'meiling@example.com'),
-      vehicle: Vehicle(
-        vin: 'JH4DC5300RS000002',
-        plate: 'WQY 8899',
-        make: 'Perodua',
-        model: 'Myvi',
-        year: 2020,
-        history: [
-          ServiceRecord(date: DateTime.now().subtract(const Duration(days: 45)), description: 'Battery replacement'),
-        ],
-      ),
-      parts: [
-        PartItem(id: 'P-200', name: 'Brake Pads Set', number: 'BP-FRONT', qty: 1),
-        PartItem(id: 'P-201', name: 'Brake Cleaner', number: 'BC-500', qty: 1),
-      ],
-      scheduledFor: DateTime.now().add(const Duration(hours: 3)),
-    ),
-  ];
+  /// 当前用户 UID
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
+  /// 一次性拉取 Job 列表（支持时间范围）
   Future<List<MechanicJob>> listJobs({DateTime? start, DateTime? end}) async {
-    await _restoreElapsed();
-    if (start == null || end == null) return _jobs;
-    return _jobs
-        .where((j) =>
-    j.scheduledFor.isAfter(start.subtract(const Duration(seconds: 1))) &&
-        j.scheduledFor.isBefore(end.add(const Duration(seconds: 1))))
-        .toList();
-  }
+    if (_uid == null) return [];
 
-  Future<MechanicJob?> getJob(String id) async {
-    await _restoreElapsed();
-    try {
-      return _jobs.firstWhere((e) => e.id == id);
-    } catch (_) {
-      return null;
+    Query<Map<String, dynamic>> query = _db
+        .collection("jobs")
+        .where("createdBy", isEqualTo: _uid)
+        .orderBy("scheduledFor");
+
+    if (start != null && end != null) {
+      query = query
+          .where("scheduledFor", isGreaterThanOrEqualTo: start)
+          .where("scheduledFor", isLessThanOrEqualTo: end);
     }
+
+    final snapshot = await query.get();
+    final jobs =
+    snapshot.docs.map((doc) => MechanicJob.fromFirestore(doc)).toList();
+
+    // 恢复本地 elapsedSeconds
+    await _restoreElapsed(jobs);
+    return jobs;
   }
 
+  /// 实时监听 Job 列表（推荐给 Dashboard 用）
+  Stream<List<MechanicJob>> streamJobs() {
+    if (_uid == null) return const Stream.empty();
+    return _db
+        .collection("jobs")
+        .where("createdBy", isEqualTo: _uid)
+        .orderBy("scheduledFor")
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => MechanicJob.fromFirestore(doc)).toList());
+  }
+
+  /// 根据 ID 获取 Job
+  Future<MechanicJob?> getJob(String id) async {
+    if (_uid == null) return null;
+    final doc = await _db.collection("jobs").doc(id).get();
+    if (!doc.exists) return null;
+    final job = MechanicJob.fromFirestore(doc);
+    await _restoreElapsed([job]);
+    return job;
+  }
+
+  /// 更新 Job 状态
   Future<void> updateStatus(String id, JobStatus status) async {
-    final job = await getJob(id);
-    if (job != null) job.status = status;
+    await _db.collection("jobs").doc(id).update({
+      "status": status.name,
+    });
   }
 
-  Future<void> addTextNote(String id, String text) async {
-    final job = await getJob(id);
-    if (job == null) return;
-    job.notes.insert(0, NoteItem(id: _uuid.v4(), timestamp: DateTime.now(), text: text));
+  /// 添加文字笔记
+  Future<void> addTextNote(String jobId, String text) async {
+    final note = {
+      "id": _uuid.v4(),
+      "timestamp": DateTime.now(),
+      "text": text,
+    };
+    await _db.collection("jobs").doc(jobId).collection("notes").add(note);
   }
 
-  Future<void> addPhotoNote(String id, String photoPath) async {
-    final job = await getJob(id);
-    if (job == null) return;
-    job.notes.insert(0, NoteItem(id: _uuid.v4(), timestamp: DateTime.now(), photoPath: photoPath));
+  /// 添加照片笔记
+  Future<void> addPhotoNote(String jobId, String photoPath) async {
+    final note = {
+      "id": _uuid.v4(),
+      "timestamp": DateTime.now(),
+      "photoPath": photoPath,
+    };
+    await _db.collection("jobs").doc(jobId).collection("notes").add(note);
   }
 
+  /// 保存本地 elapsedSeconds
   Future<void> saveElapsed(String id, int seconds) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('elapsed_$id', seconds);
-    final job = await getJob(id);
-    if (job != null) job.elapsedSeconds = seconds;
   }
 
-  Future<void> _restoreElapsed() async {
+  /// 恢复本地 elapsedSeconds
+  Future<void> _restoreElapsed(List<MechanicJob> jobs) async {
     final prefs = await SharedPreferences.getInstance();
-    for (final j in _jobs) {
+    for (final j in jobs) {
       j.elapsedSeconds = prefs.getInt('elapsed_${j.id}') ?? j.elapsedSeconds;
     }
+  }
+
+  /// 新增 Job
+  Future<void> addJob({
+    required String title,
+    required String description,
+    required Customer customer,
+    required Vehicle vehicle,
+    required List<PartItem> parts,
+    required DateTime scheduledFor,
+  }) async {
+    if (_uid == null) return;
+    await _db.collection("jobs").add({
+      "title": title,
+      "description": description,
+      "status": JobStatus.assigned.name, // 默认状态
+      "scheduledFor": scheduledFor,
+      "createdBy": _uid,
+      "createdAt": FieldValue.serverTimestamp(),
+      "customer": customer.toMap(),
+      "vehicle": vehicle.toMap(),
+      "parts": parts.map((p) => p.toMap()).toList(),
+      "notes": [],
+    });
   }
 }
