@@ -12,7 +12,6 @@ import 'screens/sign_off_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/history_screen.dart';
-import 'screens/register_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +43,6 @@ class GearUpApp extends StatelessWidget {
         home: const _RootGate(),
         routes: {
           LoginScreen.routeName: (_) => const LoginScreen(),
-          RegisterScreen.routeName: (_) => const RegisterScreen(),
           JobDetailScreen.routeName: (_) => const JobDetailScreen(),
           SignOffScreen.routeName: (_) => const SignOffScreen(),
           HistoryScreen.routeName: (_) => const HistoryScreen(),
