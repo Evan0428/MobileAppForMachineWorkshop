@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../auth.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,6 +17,41 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _busy = false;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString("email");
+    final savedPass = prefs.getString("password");
+    final remember = prefs.getBool("rememberMe") ?? false;
+
+    if (remember && savedEmail != null && savedPass != null) {
+      setState(() {
+        _emailCtrl.text = savedEmail;
+        _passCtrl.text = savedPass;
+        _rememberMe = true;
+      });
+    }
+  }
+
+  Future<void> _saveCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setString("email", _emailCtrl.text.trim());
+      await prefs.setString("password", _passCtrl.text);
+      await prefs.setBool("rememberMe", true);
+    } else {
+      await prefs.remove("email");
+      await prefs.remove("password");
+      await prefs.setBool("rememberMe", false);
+    }
+  }
 
   @override
   void dispose() {
@@ -32,7 +68,11 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailCtrl.text.trim(),
         _passCtrl.text,
       );
+
       if (!mounted) return;
+
+      // 保存记住的凭证
+      await _saveCredentials();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Welcome back!')),
@@ -145,16 +185,31 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
 
-                      // 忘记密码
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _resetPassword,
-                          child: const Text(
-                            "Forgot Password?",
-                            style: TextStyle(color: Colors.grey),
+                      // 忘记密码 & 记住我
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _rememberMe,
+                                onChanged: (v) {
+                                  setState(() {
+                                    _rememberMe = v ?? false;
+                                  });
+                                },
+                              ),
+                              const Text("Remember Me"),
+                            ],
                           ),
-                        ),
+                          TextButton(
+                            onPressed: _resetPassword,
+                            child: const Text(
+                              "Forgot Password?",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 
