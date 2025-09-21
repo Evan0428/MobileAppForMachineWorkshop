@@ -352,7 +352,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         FilledButton(
                           onPressed: () async {
                             final t = noteCtrl.text.trim();
@@ -411,7 +411,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         ],
       ),
 
-      // Bottom buttons
+// Bottom buttons (统一样式 + 尺寸)
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -419,56 +419,99 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             color: Theme.of(context).colorScheme.surface,
             border: Border(top: BorderSide(color: Colors.black.withOpacity(0.08))),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () {
-                    _ticker?.cancel();
-                    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-                      setState(() {
-                        job!.elapsedSeconds++;
-                      });
-                    });
-                  },
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Start'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    _ticker?.cancel();
-                    repo.saveElapsed(job!.id, job!.elapsedSeconds);
-                  },
-                  icon: const Icon(Icons.pause),
-                  label: const Text('Pause'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    _ticker?.cancel();
-                    repo.saveElapsed(job!.id, job!.elapsedSeconds);
-                  },
-                  icon: const Icon(Icons.stop),
-                  label: const Text('Stop'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: canSignOff ? () => _goSignOff(job!.id) : null,
-                  icon: const Icon(Icons.assignment_turned_in),
-                  label: const Text('Sign-off'),
-                ),
-              ),
-            ],
+          child: Builder(
+            builder: (context) {
+              // —— 统一样式 —— //
+              const double icoSize = 18;
+              const double btnHeight = 44;
+
+              const TextStyle btnText = TextStyle(
+                fontSize: 13,                 // ✅ 统一字体，避免换行
+                fontWeight: FontWeight.w600,
+                letterSpacing: .2,
+              );
+
+              final ButtonStyle filledStyle = FilledButton.styleFrom(
+                minimumSize: const Size(0, btnHeight),     // ✅ 统一高度
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: const StadiumBorder(),              // ✅ 圆角统一
+                textStyle: btnText,
+              );
+
+              final ButtonStyle outlinedStyle = OutlinedButton.styleFrom(
+                minimumSize: const Size(0, btnHeight),     // ✅ 统一高度
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: const StadiumBorder(),
+                textStyle: btnText,
+              );
+
+              return Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: filledStyle,
+                      onPressed: () {
+                        _ticker?.cancel();
+                        _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+                          setState(() => job!.elapsedSeconds++);
+                        });
+                      },
+                      icon: const Icon(Icons.play_arrow, size: icoSize),
+                      label: const Text(
+                        'Start',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: outlinedStyle,
+                      onPressed: () {
+                        _ticker?.cancel();
+                        repo.saveElapsed(job!.id, job!.elapsedSeconds);
+                      },
+                      icon: const Icon(Icons.pause, size: icoSize),
+                      label: const Text(
+                        'Pause',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: outlinedStyle,
+                      onPressed: () {
+                        _ticker?.cancel();
+                        repo.saveElapsed(job!.id, job!.elapsedSeconds);
+                      },
+                      icon: const Icon(Icons.stop, size: icoSize),
+                      label: const Text(
+                        'Stop',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: filledStyle,
+                      onPressed: canSignOff ? () => _goSignOff(job!.id) : null,
+                      icon: const Icon(Icons.assignment_turned_in, size: icoSize),
+                      label: const Text(
+                        'Sign-off',
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
+
     );
   }
 }
