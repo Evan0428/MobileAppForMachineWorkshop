@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../auth.dart';
 import 'register_screen.dart'; // 👈 引入注册页
 
@@ -38,7 +39,6 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Welcome back!')),
       );
 
-      // ✅ 登录成功后强制回到 RootGate (会根据登录状态跳 Dashboard)
       Navigator.pushReplacementNamed(context, '/');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,6 +46,27 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email first')),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent! Check your inbox.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send reset email: $e')),
+      );
     }
   }
 
@@ -91,7 +112,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: true,
                       validator: (v) => (v == null || v.isEmpty) ? 'Enter password' : null,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
+
+                    // 忘记密码按钮
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _resetPassword,
+                        child: const Text("Forgot Password?"),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
 
                     // 登录按钮
                     SizedBox(
@@ -99,7 +131,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 48,
                       child: FilledButton(
                         onPressed: _busy ? null : _doLogin,
-                        child: _busy ? const CircularProgressIndicator() : const Text('Log In'),
+                        child: _busy
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('Log In'),
                       ),
                     ),
                     const SizedBox(height: 12),
