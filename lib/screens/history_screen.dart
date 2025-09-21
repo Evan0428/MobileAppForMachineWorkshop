@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../state.dart';
 import '../models.dart';
 import 'job_detail_screen.dart';
+import 'dashboard_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   static const routeName = '/history';
@@ -12,10 +14,12 @@ class HistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<JobListController>();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? "";
 
-    // ✅ 从 Firestore 直接获取 jobs
+    // ✅ 从 Firestore 直接获取当前用户的 jobs
     final jobsStream = FirebaseFirestore.instance
         .collection("jobs")
+        .where("createdBy", isEqualTo: uid) // 🔑 限制只查当前用户的
         .orderBy("scheduledFor", descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => MechanicJob.fromFirestore(d)).toList());
